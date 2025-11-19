@@ -1,6 +1,5 @@
 ﻿package com.thedevjade.typingwithlux.dialogue.entries
 
-import com.typewritermc.core.entries.get
 import com.typewritermc.core.interaction.InteractionContext
 import com.typewritermc.engine.paper.entry.Modifier
 import com.typewritermc.engine.paper.entry.descendants
@@ -61,6 +60,7 @@ class OptionsLuxDialogueHandler(
 
         val safeDialogueId = entry.id.takeWhile { it.isDigit() }.ifEmpty { kotlin.math.abs(entry.id.hashCode()).toString() }
 
+
         val dialogueBuilder = Dialogue.Builder()
             .setDialogueID(safeDialogueId)
             .setRange(-1.0)
@@ -79,25 +79,37 @@ class OptionsLuxDialogueHandler(
             .setFogImage("fog", "#000000")
             .setEffect("Slowness")
             .setPreventExit(true)
-        val pageBuilder = Page.Builder().setID("main-page-${'$'}safeDialogueId")
-        entry.text.split("\n").forEach { pageBuilder.addLine(it) }
-        hashedOptions.forEach { entryOption ->
-            val index = entryOption.key
-            val option = entryOption.value
-            if (option.criteria.isNotEmpty() && !option.criteria.matches(player, context)){
-                return@forEach
-            }
-            val answer = Answer.Builder()
-                .setAnswerID(index.toString())
-                .setAnswerText(option.text.get(player, context))
-                .addCallback { selectedOption = index }
-                .build()
-            pageBuilder.addAnswer(answer)
+        val page: Page.Builder = Page.Builder()
+        entry.text.split("\n").forEach { page.addLine(it) }
+
+        var i = 1
+
+        entry.options.forEach {
+            hashedOptions[i] = it
+            i++
         }
-        val page = pageBuilder.build()
-        dialogueBuilder.addPage(page)
+        hashedOptions.forEach {
+            if (!it.value.criteria.isEmpty() && !it.value.criteria.matches(player, context)) return@forEach
+            val thing = it
+            val answer: Answer = Answer.Builder()
+                .setAnswerID(it.key.toString())
+                .setAnswerText(it.value.text.get(player, context))
+                .addCallback {
+                    val currentI = thing.key
+                    selectedOption = currentI
+                }
+                .build()
+            page.addAnswer(answer)
+            page.setID("")
+        }
+
+        dialogueBuilder.addPage(page.build())
+
+
         dialogue = dialogueBuilder.build()
-        LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue!!, page.id)
+
+        LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue, )
+
     }
 
     override fun dispose() {
@@ -111,13 +123,11 @@ class OptionsLuxDialogueHandler(
         }
 
         super.tick(context)
-
         if (state != MessengerState.RUNNING) return
-
         player.stopBlockingActionBar()
-
         if (selectedOption != null) {
             state = MessengerState.FINISHED
         }
+
     }
 }

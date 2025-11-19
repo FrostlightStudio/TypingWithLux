@@ -84,7 +84,7 @@ class LuxTemporalAction(
             .setCharacterNameText(data.characterName.parsePlaceholders(player), "#4f4a3e", 20)
             .setNameImage("name-start", "name-mid", "name-end", "#ffffff", 0)
             .setFogImage("fog", "#000000")
-            .setEffect("Slownes")
+            .setEffect("Slowness")
             .setPreventExit(true)
         val pageBuilder = Page.Builder()
             .setID("page-${'$'}{segment.startFrame}")

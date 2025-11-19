@@ -93,7 +93,7 @@ class RegularLuxDialogueHandler(
 
         dialogue = dialogueBuilder.build()
 
-        // --- SEND DIALOGUE (requires pageId)
+
         LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue, builtPage.id)
     }
 
