@@ -1,0 +1,4 @@
+name: TypingWithLux
+version: '1.0-SNAPSHOT'
+main: com.thedevjade.typingwithlux.Entry
+api-version: '1.21'
