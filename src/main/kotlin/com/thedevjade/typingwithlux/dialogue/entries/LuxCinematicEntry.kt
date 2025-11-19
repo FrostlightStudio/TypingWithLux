@@ -23,6 +23,7 @@ import org.aselstudios.luxdialoguesapi.Builders.Dialogue
 import org.aselstudios.luxdialoguesapi.Builders.Page
 import org.aselstudios.luxdialoguesapi.LuxDialoguesAPI
 import org.bukkit.entity.Player
+import kotlin.math.abs
 
 @Entry("lux_cinematic_entry", "Lux Dialogues in cinematics", Colors.BLUE, "material-symbols:cinematic-blur")
 class LuxCinematicEntry(
@@ -52,6 +53,7 @@ class LuxTemporalAction(
     val player: Player,
     val entry: LuxCinematicEntry,
 ) : SimpleCinematicAction<LuxCinematicSegment>() {
+
     override val segments: List<LuxCinematicSegment> = entry.segments
 
     override suspend fun startSegment(segment: LuxCinematicSegment) {
@@ -61,48 +63,42 @@ class LuxTemporalAction(
         val data = npc.data.descendants(LuxNpcData::class).firstOrNull()?.get()
         if (data == null) {
             stopSegment(segment)
-            logger.severe("No npc data found for ${npc.name}")
+            logger.severe("No npc data found for ${'$'}{npc.name}")
             return
         }
+        val safeDialogueId = entry.id.takeWhile { it.isDigit() }.ifEmpty { abs(entry.id.hashCode()).toString() }
 
-
-
-
-        val dialogueBuilder: Dialogue.Builder  = Dialogue.Builder()
-            .setDialogueID(entry.id)
+        val dialogueBuilder = Dialogue.Builder()
+            .setDialogueID(safeDialogueId)
             .setRange(-1.0)
             .setDialogueSpeed(4)
-            .setTypingSound()
-            .setTypingSoundPitch(1.0)
-            .setTypingSoundVolume(1.0)
-            .setSelectionSound("luxdialogues:luxdialogues.sounds.selection")
+            .setTypingSound("luxdialogues:luxdialogues.sounds.typing", "MASTER", 1.0, 1.0)
+            .setSelectionSound("luxdialogues:luxdialogues.sounds.selection", "MASTER", 1.0, 1.0)
             .setAnswerNumbers(false)
             .setArrowImage("hand", "#cdff29", -7)
-            .setDialogueBackgroundImage("dialogue-background", "#f8ffe0", 0)
-            .setAnswerBackgroundImage("answer-background", "#f8ffe0", 90)
+            .setDialogueBackgroundImage("dialogue-background", "#ffffff", -60)
+            .setAnswerBackgroundImage("answer-background", "#ffffff", 90)
             .setDialogueText("#4f4a3e", 10)
             .setAnswerText("#4f4a3e", 13, "#4f4a3e")
-            .setCharacterImage(data.imageName, -16)
+            .setCharacterImage(data.imageName, "#ffffff", -16)
             .setCharacterNameText(data.characterName.parsePlaceholders(player), "#4f4a3e", 20)
-            .setNameStartImage("name-start")
-            .setNameMidImage("name-mid")
-            .setNameEndImage("name-end")
-            .setNameImageColor("#f8ffe0")
+            .setNameImage("name-start", "name-mid", "name-end", "#ffffff", 0)
             .setFogImage("fog", "#000000")
             .setEffect("Slowness")
             .setPreventExit(true)
-        val page: Page.Builder = Page.Builder()
-        segment.text.split("\n").forEach { page.addLine(it) }
-
-        dialogueBuilder.addPage(page.build())
+        val pageBuilder = Page.Builder()
+            .setID("page-${'$'}{segment.startFrame}")
+        segment.text.split("\n").forEach { line ->
+            pageBuilder.addLine(line)
+        }
+        val page = pageBuilder.build()
+        dialogueBuilder.addPage(page)
         val dialogue = dialogueBuilder.build()
-
-        LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue)
+        LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue, page.id)
     }
 
     override suspend fun tickSegment(segment: LuxCinematicSegment, frame: Int) {
         super.tickSegment(segment, frame)
-
         player.stopBlockingActionBar()
     }
 
