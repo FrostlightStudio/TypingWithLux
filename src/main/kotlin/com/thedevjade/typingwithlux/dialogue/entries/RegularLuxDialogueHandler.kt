@@ -87,6 +87,16 @@ class RegularLuxDialogueHandler(
             pageBuilder.addLine(line)
         }
 
+        // Add optional goTo navigation
+        if (entry.goTo.isNotEmpty()) {
+            pageBuilder.setGoTo(entry.goTo)
+        }
+
+        // Add optional timer
+        if (entry.timer > 0) {
+            pageBuilder.setTimer(entry.timer)
+        }
+
         val builtPage = pageBuilder.build()
 
         dialogueBuilder.addPage(builtPage)

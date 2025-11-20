@@ -61,6 +61,11 @@ class OptionsLuxDialogueHandler(
 
         val safeDialogueId = entry.id.takeWhile { it.isDigit() }.ifEmpty { kotlin.math.abs(entry.id.hashCode()).toString() }
 
+        // Initialize hashedOptions with entry.options
+        entry.options.forEachIndexed { index, option ->
+            hashedOptions[index] = option
+        }
+
         val dialogueBuilder = Dialogue.Builder()
             .setDialogueID(safeDialogueId)
             .setRange(-1.0)
@@ -87,11 +92,22 @@ class OptionsLuxDialogueHandler(
             if (option.criteria.isNotEmpty() && !option.criteria.matches(player, context)){
                 return@forEach
             }
-            val answer = Answer.Builder()
+            val answerBuilder = Answer.Builder()
                 .setAnswerID(index.toString())
                 .setAnswerText(option.text.get(player, context))
                 .addCallback { selectedOption = index }
-                .build()
+
+            // Add goTo if specified
+            if (option.goTo.isNotEmpty()) {
+                answerBuilder.setGoTo(option.goTo)
+            }
+
+            // Add reply messages if specified
+            option.replyMessages.forEach { message ->
+                answerBuilder.addReplyMessage(message)
+            }
+
+            val answer = answerBuilder.build()
             pageBuilder.addAnswer(answer)
         }
         val page = pageBuilder.build()
