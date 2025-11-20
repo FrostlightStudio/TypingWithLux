@@ -97,7 +97,7 @@ class OptionsLuxDialogueHandler(
         val page = pageBuilder.build()
         dialogueBuilder.addPage(page)
         dialogue = dialogueBuilder.build()
-        LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue!!, page.id)
+        LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue, page.id)
     }
 
     override fun dispose() {
