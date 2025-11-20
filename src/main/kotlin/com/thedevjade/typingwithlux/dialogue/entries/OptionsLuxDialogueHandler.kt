@@ -92,19 +92,19 @@ class OptionsLuxDialogueHandler(
             if (option.criteria.isNotEmpty() && !option.criteria.matches(player, context)){
                 return@forEach
             }
-            val answerBuilder = Answer.Builder()
+            var answerBuilder = Answer.Builder()
                 .setAnswerID(index.toString())
                 .setAnswerText(option.text.get(player, context))
                 .addCallback { selectedOption = index }
 
             // Add goTo if specified
             if (option.goTo.isNotEmpty()) {
-                answerBuilder.setGoTo(option.goTo)
+                answerBuilder = answerBuilder.setGoTo(option.goTo)
             }
 
             // Add reply messages if specified
             option.replyMessages.forEach { message ->
-                answerBuilder.addReplyMessage(message)
+                answerBuilder = answerBuilder.addReplyMessage(message)
             }
 
             val answer = answerBuilder.build()
