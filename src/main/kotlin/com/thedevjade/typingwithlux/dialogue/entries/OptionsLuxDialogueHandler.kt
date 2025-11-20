@@ -61,21 +61,26 @@ class OptionsLuxDialogueHandler(
 
         val safeDialogueId = entry.id.takeWhile { it.isDigit() }.ifEmpty { kotlin.math.abs(entry.id.hashCode()).toString() }
 
+        // Initialize hashedOptions with entry.options
+        entry.options.forEachIndexed { index, option ->
+            hashedOptions[index] = option
+        }
+
         val dialogueBuilder = Dialogue.Builder()
             .setDialogueID(safeDialogueId)
             .setRange(-1.0)
             .setDialogueSpeed(time)
             .setTypingSound("minecraft:entity.armadillo.scute_drop", "MASTER", 1.0, 1.0)
             .setSelectionSound("luxdialogues:luxdialogues.sounds.selection", "MASTER", 1.0, 1.0)
-            .setAnswerNumbers(true)
-            .setArrowImage("hand", "#cdff29", -7)
+            .setAnswerNumbers(false)
+            .setArrowImage("hand", "#ffffff", -7)
             .setDialogueBackgroundImage("dialogue-background", "#ffffff", -5)
-            .setAnswerBackgroundImage("answer-background", "#ffffff", 90)
-            .setDialogueText("#4f4a3e", 40)
-            .setAnswerText("#4f4a3e", 13, "#4f4a3e")
+            .setAnswerBackgroundImage("answer-background", "#ffffff", 160)
+            .setDialogueText("#ffffff", 40)
+            .setAnswerText("#ffffff", 13, "#eba601")
             .setCharacterImage(data.imageName, "#ffffff", -16)
-            .setCharacterNameText(data.characterName.parsePlaceholders(player), "#4f4a3e", 2)
-            .setNameImage("name-start", "name-mid", "name-end", "#f8ffe0", 0)
+            .setCharacterNameText(data.characterName.parsePlaceholders(player), "#9cf786", 2)
+            .setNameImage("name-start", "name-mid", "name-end", "#ffffff", 0)
             .setFogImage("fog", "#000000")
             .setEffect("Slowness")
             .setPreventExit(true)
@@ -87,11 +92,22 @@ class OptionsLuxDialogueHandler(
             if (option.criteria.isNotEmpty() && !option.criteria.matches(player, context)){
                 return@forEach
             }
-            val answer = Answer.Builder()
+            var answerBuilder = Answer.Builder()
                 .setAnswerID(index.toString())
                 .setAnswerText(option.text.get(player, context))
                 .addCallback { selectedOption = index }
-                .build()
+
+            // Add goTo if specified
+            if (option.goTo.isNotEmpty()) {
+                answerBuilder = answerBuilder.setGoTo(option.goTo)
+            }
+
+            // Add reply messages if specified
+            option.replyMessages.forEach { message ->
+                answerBuilder = answerBuilder.addReplyMessage(message)
+            }
+
+            val answer = answerBuilder.build()
             pageBuilder.addAnswer(answer)
         }
         val page = pageBuilder.build()

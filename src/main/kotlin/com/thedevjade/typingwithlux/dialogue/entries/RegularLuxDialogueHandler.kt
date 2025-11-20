@@ -57,22 +57,22 @@ class RegularLuxDialogueHandler(
                 1.0
             )
             .setAnswerNumbers(false)
-            .setArrowImage("hand", "#cdff29", -7)
-            .setDialogueBackgroundImage("dialogue-background", "#ffffff", -35)
-            .setAnswerBackgroundImage("answer-background", "#f8ffe0", 90)
-            .setDialogueText("#4f4a3e", 10)
-            .setAnswerText("#4f4a3e", 13, "#4f4a3e")
+            .setArrowImage("hand", "#ffffff", -7)
+            .setDialogueBackgroundImage("dialogue-background", "#ffffff", -5)
+            .setAnswerBackgroundImage("answer-background", "#ffffff", 160)
+            .setDialogueText("#ffffff", 40)
+            .setAnswerText("#ffffff", 13, "#eba601")
             .setCharacterImage(data.imageName, "#ffffff", -16)
             .setCharacterNameText(
                 data.characterName.parsePlaceholders(player),
-                "#4f4a3e",
-                20
+                "#9cf786",
+                2
             )
             .setNameImage(
                 "name-start",
                 "name-mid",
                 "name-end",
-                "#f8ffe0",
+                "#ffffff",
                 0
             )
             .setFogImage("fog", "#000000")
@@ -85,6 +85,16 @@ class RegularLuxDialogueHandler(
 
         entry.text.split("\n").forEach { line ->
             pageBuilder.addLine(line)
+        }
+
+        // Add optional goTo navigation
+        if (entry.goTo.isNotEmpty()) {
+            pageBuilder.setGoTo(entry.goTo)
+        }
+
+        // Add optional timer
+        if (entry.timer > 0) {
+            pageBuilder.setTimer(entry.timer)
         }
 
         val builtPage = pageBuilder.build()

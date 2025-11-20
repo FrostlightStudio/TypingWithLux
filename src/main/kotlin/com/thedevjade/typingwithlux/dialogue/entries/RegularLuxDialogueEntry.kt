@@ -35,6 +35,10 @@ class RegularLuxDialogueEntry(
     val text: String = "",
     @Help("The duration it takes to type out the message. If the duration is zero, the message will be displayed instantly.")
     val duration: Var<java.time.Duration> = ConstVar(java.time.Duration.ZERO),
+    @Help("Optional page ID to navigate to after this dialogue finishes.")
+    val goTo: String = "",
+    @Help("Optional timer (in ticks) to automatically close the dialogue.")
+    val timer: Int = 0,
 ) : DialogueEntry {
     // May return null to skip the dialogue
     override fun messenger(player: Player, context: InteractionContext): DialogueMessenger<*>? {
