@@ -72,7 +72,7 @@ class OptionsLuxDialogueHandler(
             .setDialogueSpeed(time)
             .setTypingSound("minecraft:entity.armadillo.scute_drop", "MASTER", 1.0, 1.0)
             .setSelectionSound("luxdialogues:luxdialogues.sounds.selection", "MASTER", 1.0, 1.0)
-            .setAnswerNumbers(true)
+            .setAnswerNumbers(false)
             .setArrowImage("hand", "#cdff29", -7)
             .setDialogueBackgroundImage("dialogue-background", "#ffffff", -5)
             .setAnswerBackgroundImage("answer-background", "#ffffff", 90)
