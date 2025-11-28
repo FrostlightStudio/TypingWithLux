@@ -56,7 +56,11 @@ data class LuxOption(
     @Help("The modifiers to apply when this option is chosen.")
     val modifiers: List<Modifier> = emptyList(),
     @Help("The triggers to fire when this option is chosen.")
-    val triggers: List<Ref<TriggerableEntry>> = emptyList()
+    val triggers: List<Ref<TriggerableEntry>> = emptyList(),
+    @Help("The ID of the page to navigate to after selecting this option.")
+    val goTo: String = "",
+    @Help("Reply messages to display after selecting this option.")
+    val replyMessages: List<String> = emptyList()
 ) {
     val eventTriggers: List<EventTrigger> get() = triggers.map(::EntryTrigger)
 }

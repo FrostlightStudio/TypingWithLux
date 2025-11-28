@@ -10,6 +10,8 @@ import com.typewritermc.core.extension.annotations.Segments
 import com.typewritermc.engine.paper.entry.Criteria
 import com.typewritermc.engine.paper.entry.descendants
 import com.typewritermc.engine.paper.entry.entity.SimpleEntityDefinition
+import com.typewritermc.entity.entries.entity.custom.NpcDefinition
+import com.typewritermc.entity.entries.entity.custom.NpcInstance
 import com.typewritermc.engine.paper.entry.entries.CinematicAction
 import com.typewritermc.engine.paper.entry.entries.CinematicEntry
 import com.typewritermc.engine.paper.entry.entries.Segment
@@ -23,6 +25,7 @@ import org.aselstudios.luxdialoguesapi.Builders.Dialogue
 import org.aselstudios.luxdialoguesapi.Builders.Page
 import org.aselstudios.luxdialoguesapi.LuxDialoguesAPI
 import org.bukkit.entity.Player
+import kotlin.math.abs
 
 @Entry("lux_cinematic_entry", "Lux Dialogues in cinematics", Colors.BLUE, "material-symbols:cinematic-blur")
 class LuxCinematicEntry(
@@ -52,57 +55,57 @@ class LuxTemporalAction(
     val player: Player,
     val entry: LuxCinematicEntry,
 ) : SimpleCinematicAction<LuxCinematicSegment>() {
+
     override val segments: List<LuxCinematicSegment> = entry.segments
 
     override suspend fun startSegment(segment: LuxCinematicSegment) {
         super.startSegment(segment)
 
-        val npc = segment.speaker.get() as SimpleEntityDefinition
-        val data = npc.data.descendants(LuxNpcData::class).firstOrNull()?.get()
+        val speaker = segment.speaker.get()
+        val data = when (speaker) {
+            is NpcDefinition -> speaker.data.descendants(LuxNpcData::class).firstOrNull()?.get()
+            is NpcInstance -> speaker.definition.get()?.data?.descendants(LuxNpcData::class)?.firstOrNull()?.get()
+            is SimpleEntityDefinition -> speaker.data.descendants(LuxNpcData::class).firstOrNull()?.get()
+            else -> null
+        }
         if (data == null) {
             stopSegment(segment)
-            logger.severe("No npc data found for ${npc.name}")
+            logger.severe("No npc data found for speaker")
             return
         }
+        val safeDialogueId = entry.id.takeWhile { it.isDigit() }.ifEmpty { abs(entry.id.hashCode()).toString() }
 
-
-
-
-        val dialogueBuilder: Dialogue.Builder  = Dialogue.Builder()
-            .setDialogueID(entry.id)
+        val dialogueBuilder = Dialogue.Builder()
+            .setDialogueID(safeDialogueId)
             .setRange(-1.0)
             .setDialogueSpeed(4)
-            .setTypingSound("minecraft:entity.armadillo.scute_drop")
-            .setTypingSoundPitch(1.0)
-            .setTypingSoundVolume(1.0)
-            .setSelectionSound("luxdialogues:luxdialogues.sounds.selection")
+            .setTypingSound(data.typingSound, data.typingSoundCategory, data.typingSoundVolume, data.typingSoundPitch)
+            .setSelectionSound(data.selectionSound, data.selectionSoundCategory, data.selectionSoundVolume, data.selectionSoundPitch)
             .setAnswerNumbers(false)
-            .setArrowImage("hand", "#cdff29", -7)
-            .setDialogueBackgroundImage("dialogue-background", "#f8ffe0", 0)
-            .setAnswerBackgroundImage("answer-background", "#f8ffe0", 90)
-            .setDialogueText("#4f4a3e", 10)
-            .setAnswerText("#4f4a3e", 13, "#4f4a3e")
-            .setCharacterImage(data.imageName, -16)
-            .setCharacterNameText(data.characterName.parsePlaceholders(player), "#4f4a3e", 20)
-            .setNameStartImage("name-start")
-            .setNameMidImage("name-mid")
-            .setNameEndImage("name-end")
-            .setNameImageColor("#f8ffe0")
-            .setFogImage("fog", "#000000")
-            .setEffect("Slowness")
+            .setArrowImage(data.arrowImage, data.arrowColor, data.arrowOffset)
+            .setDialogueBackgroundImage(data.dialogueBackgroundImage, data.dialogueBackgroundColor, data.dialogueBackgroundOffset)
+            .setAnswerBackgroundImage(data.answerBackgroundImage, data.answerBackgroundColor, data.answerBackgroundOffset)
+            .setDialogueText(data.dialogueTextColor, data.dialogueTextOffset)
+            .setAnswerText(data.answerTextColor, data.answerTextOffset, data.answerSelectedColor)
+            .setCharacterImage(data.imageName, data.characterColor, data.characterOffset)
+            .setCharacterNameText(data.characterName.parsePlaceholders(player), data.characterNameColor, data.characterNameOffset)
+            .setNameImage(data.nameStartImage, data.nameMidImage, data.nameEndImage, data.nameBackgroundColor, data.nameImageOffset)
+            .setFogImage(data.fogImage, data.fogColor)
+            .setEffect(data.effect)
             .setPreventExit(true)
-        val page: Page.Builder = Page.Builder()
-        segment.text.split("\n").forEach { page.addLine(it) }
-
-        dialogueBuilder.addPage(page.build())
+        val pageBuilder = Page.Builder()
+            .setID("page-${'$'}{segment.startFrame}")
+        segment.text.split("\n").forEach { line ->
+            pageBuilder.addLine(line)
+        }
+        val page = pageBuilder.build()
+        dialogueBuilder.addPage(page)
         val dialogue = dialogueBuilder.build()
-
-        LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue)
+        LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue, page.id)
     }
 
     override suspend fun tickSegment(segment: LuxCinematicSegment, frame: Int) {
         super.tickSegment(segment, frame)
-
         player.stopBlockingActionBar()
     }
 

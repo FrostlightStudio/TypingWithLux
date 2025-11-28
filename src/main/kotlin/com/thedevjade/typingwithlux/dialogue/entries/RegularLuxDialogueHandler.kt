@@ -7,80 +7,92 @@ import com.typewritermc.engine.paper.entry.dialogue.DialogueMessenger
 import com.typewritermc.engine.paper.entry.dialogue.MessengerState
 import com.typewritermc.engine.paper.entry.dialogue.TickContext
 import com.typewritermc.engine.paper.entry.entity.SimpleEntityDefinition
-import com.typewritermc.engine.paper.entry.entity.SimpleEntityInstance
+import com.typewritermc.entity.entries.entity.custom.NpcDefinition
+import com.typewritermc.entity.entries.entity.custom.NpcInstance
 import com.typewritermc.engine.paper.extensions.placeholderapi.parsePlaceholders
 import com.typewritermc.engine.paper.interaction.startBlockingActionBar
 import com.typewritermc.engine.paper.interaction.stopBlockingActionBar
 import com.typewritermc.engine.paper.logger
-import com.typewritermc.entity.entries.entity.custom.NpcDefinition
-import com.typewritermc.entity.entries.entity.custom.NpcInstance
 import org.aselstudios.luxdialoguesapi.Builders.Dialogue
 import org.aselstudios.luxdialoguesapi.Builders.Page
 import org.aselstudios.luxdialoguesapi.LuxDialoguesAPI
 import org.bukkit.entity.Player
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.toJavaDuration
+import kotlin.math.abs
 
-class RegularLuxDialogueHandler(player: Player, context: InteractionContext, entry: RegularLuxDialogueEntry) :
-    DialogueMessenger<RegularLuxDialogueEntry>(player, context, entry) {
+class RegularLuxDialogueHandler(
+    player: Player,
+    context: InteractionContext,
+    entry: RegularLuxDialogueEntry
+) : DialogueMessenger<RegularLuxDialogueEntry>(player, context, entry) {
 
-        var dialogue: Dialogue? = null
-
+    var dialogue: Dialogue? = null
+    var endMethodHasNotRan: Boolean = true
 
     override fun init() {
         super.init()
-
-        val npc = entry.speaker.get() as SimpleEntityDefinition
-        val data = npc.data.descendants(LuxNpcData::class).firstOrNull()?.get()
+        val speaker = entry.speaker.get()
+        val data = when (speaker) {
+            is NpcDefinition -> speaker.data.descendants(LuxNpcData::class).firstOrNull()?.get()
+            is NpcInstance -> speaker.definition.get()?.data?.descendants(LuxNpcData::class)?.firstOrNull()?.get()
+            is SimpleEntityDefinition -> speaker.data.descendants(LuxNpcData::class).firstOrNull()?.get()
+            else -> null
+        }
         if (data == null) {
             state = MessengerState.FINISHED
-            logger.severe("No npc data found for ${npc.name}")
+            logger.severe("No npc data found for speaker")
             return
         }
         val totalTime: Int = (entry.duration.get(player, context).toMillis() * 20 / 1000).toInt()
-
         val chars = entry.text.length.coerceAtLeast(1)
         val time = (totalTime / chars).coerceAtLeast(1)
-
-        val dialogueBuilder: Dialogue.Builder  = Dialogue.Builder()
-            .setDialogueID(entry.id)
+        val safeDialogueId = entry.id.takeWhile { it.isDigit() }
+            .ifEmpty { abs(entry.id.hashCode()).toString() }
+        val dialogueBuilder = Dialogue.Builder()
+            .setDialogueID(safeDialogueId)
             .setRange(-1.0)
             .setDialogueSpeed(time)
-            .setTypingSound("minecraft:entity.armadillo.scute_drop")
-            .setTypingSoundPitch(1.0)
-            .setTypingSoundVolume(1.0)
-            .setSelectionSound("luxdialogues:luxdialogues.sounds.selection")
+            .setTypingSound(data.typingSound, data.typingSoundCategory, data.typingSoundVolume, data.typingSoundPitch)
+            .setSelectionSound(data.selectionSound, data.selectionSoundCategory, data.selectionSoundVolume, data.selectionSoundPitch)
             .setAnswerNumbers(false)
-            .setArrowImage("hand", "#cdff29", -7)
-            .setDialogueBackgroundImage("dialogue-background", "#f8ffe0", 0)
-            .setAnswerBackgroundImage("answer-background", "#f8ffe0", 90)
-            .setDialogueText("#4f4a3e", 10)
-            .setAnswerText("#4f4a3e", 13, "#4f4a3e")
-            .setCharacterImage(data.imageName, -16)
-            .setCharacterNameText(data.characterName.parsePlaceholders(player), "#4f4a3e", 20)
-            .setNameStartImage("name-start")
-            .setNameMidImage("name-mid")
-            .setNameEndImage("name-end")
-            .setNameImageColor("#f8ffe0")
-            .setFogImage("fog", "#000000")
-            .setEffect("Slowness")
-            .setPreventExit(false)
-        val page: Page.Builder = Page.Builder()
-        entry.text.split("\n").forEach { page.addLine(it) }
+            .setArrowImage(data.arrowImage, data.arrowColor, data.arrowOffset)
+            .setDialogueBackgroundImage(data.dialogueBackgroundImage, data.dialogueBackgroundColor, data.dialogueBackgroundOffset)
+            .setAnswerBackgroundImage(data.answerBackgroundImage, data.answerBackgroundColor, data.answerBackgroundOffset)
+            .setDialogueText(data.dialogueTextColor, data.dialogueTextOffset)
+            .setAnswerText(data.answerTextColor, data.answerTextOffset, data.answerSelectedColor)
+            .setCharacterImage(data.imageName, data.characterColor, data.characterOffset)
+            .setCharacterNameText(data.characterName.parsePlaceholders(player), data.characterNameColor, data.characterNameOffset)
+            .setNameImage(data.nameStartImage, data.nameMidImage, data.nameEndImage, data.nameBackgroundColor, data.nameImageOffset)
+            .setFogImage(data.fogImage, data.fogColor)
+            .setEffect(data.effect)
+            .setPreventExit(data.preventExit)
 
-        dialogueBuilder.addPage(page.build())
+        // --- PAGE BUILDING
+        val pageBuilder = Page.Builder()
+            .setID("page-${safeDialogueId}")
 
+        entry.text.split("\n").forEach { line ->
+            pageBuilder.addLine(line)
+        }
+
+        // Add optional goTo navigation
+        if (entry.goTo.isNotEmpty()) {
+            pageBuilder.setGoTo(entry.goTo)
+        }
+
+        // Add optional timer
+        if (entry.timer > 0) {
+            pageBuilder.setTimer(entry.timer)
+        }
+
+        val builtPage = pageBuilder.build()
+
+        dialogueBuilder.addPage(builtPage)
 
         dialogue = dialogueBuilder.build()
 
-
-
-        LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue)
-
-
+        // --- SEND DIALOGUE (requires pageId)
+        LuxDialoguesAPI.getProvider().sendDialogue(player, dialogue, builtPage.id)
     }
-
-    var endMethodHasNotRan: Boolean = true
 
     override fun dispose() {
         super.dispose()
@@ -96,11 +108,15 @@ class RegularLuxDialogueHandler(player: Player, context: InteractionContext, ent
         if (context.playTime.isZero) {
             player.stopBlockingActionBar()
         }
+
         super.tick(context)
+
         if (state != MessengerState.RUNNING) return
+
         player.stopBlockingActionBar()
 
-        if (LuxDialoguesAPI.getProvider().isInDialogue(player)) return
-        state = MessengerState.FINISHED
+        if (!LuxDialoguesAPI.getProvider().isInDialogue(player)) {
+            state = MessengerState.FINISHED
+        }
     }
 }
